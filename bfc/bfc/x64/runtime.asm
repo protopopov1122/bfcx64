@@ -45,12 +45,12 @@ _bf_alloc:
 	syscall
 	push rax
 	mov rdi, rax
-	add rdi, 300000
+	add rdi, MEMORY_SIZE
 	mov rax, 12
 	syscall
 	pop rax
 	mov rdi, rax
-	mov rcx, 300000
+	mov rcx, MEMORY_SIZE
 _bf_alloc_loop:
 	mov byte [rdi], 0
 	inc rdi
