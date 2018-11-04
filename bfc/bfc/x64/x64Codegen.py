@@ -7,7 +7,6 @@ class x64Codegen:
         self._loopid = 0
         self._dump_runtime()
         self._output.write('_bf_entry:\n')
-        self._output.write('\tmov rbx, rdi\n')
         self._output.write('\txor r12, r12\n')
 
     def add(self, value: int):
@@ -31,12 +30,10 @@ class x64Codegen:
         self._output.write('\tcall _bf_normalize_pointer\n')
 
     def write(self):
-        self._output.write('\tmov rdi, [rbx + r12]\n')
         self._output.write('\tcall _bf_write\n')
 
     def read(self):
         self._output.write('\tcall _bf_read\n')
-        self._output.write('\tmov byte [r12 + rbx], al\n')
 
     def loop(self):
         label = '_bf_loop{}'.format(self._loopid)

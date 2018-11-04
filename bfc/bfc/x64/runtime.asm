@@ -10,12 +10,12 @@ _bf_terminate:
 
 _bf_write:
 	mov rax, 1
-	push rdi
+	push qword [rbx+r12]
 	mov rdi, 0
 	lea rsi, [rsp]
 	mov rdx, 1
 	syscall
-	pop rdi
+	pop rax
 	ret
 
 _bf_read:
@@ -26,6 +26,7 @@ _bf_read:
 	mov rdx, 1
 	syscall
 	pop rax
+	mov [rbx+r12], al
 	ret
 
 _bf_normalize_pointer:
@@ -50,6 +51,7 @@ _bf_alloc:
 	syscall
 	pop rax
 	mov rdi, rax
+	mov rbx, rax
 	mov rcx, MEMORY_SIZE
 _bf_alloc_loop:
 	mov byte [rdi], 0
@@ -60,7 +62,6 @@ _bf_alloc_loop:
 
 _start:
 	call _bf_alloc
-	mov rdi, rax
 	call _bf_entry
 	jmp _bf_terminate
 
