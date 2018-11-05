@@ -13,9 +13,9 @@ TODOs:
 ### Building
 Project is written in Python 3 and has no external dependencies. Usage example:
 ```bash
-python bfc/main.py examples/hello_world.bf
-nasm -f elf64 examples/hello_world.bf.asm
-ld -o hello_world examples/hello_world.bf.o
+python bfc/main.py examples/hello_world.bf > hello_world.asm
+nasm -f elf64 hello_world.asm
+ld -o hello_world hello_world.o
 ```
 
 ### Motivation

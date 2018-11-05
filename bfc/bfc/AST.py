@@ -49,5 +49,8 @@ class BrainfuckLoopNode(BrainfuckNode):
         super().__init__(BrainfuckNodeType.Loop)
         self._block = block
 
+    def get_block(self)->BrainfuckASTBlock:
+        return self._block
+
     def get_body(self)->[BrainfuckNode]:
         return self._block.get_body()

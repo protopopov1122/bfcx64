@@ -1,55 +1,72 @@
 import os
+from bfc.IR import *
 
 
-class x64Codegen:
-    def __init__(self, output):
-        self._output = output
-        self._loopid = 0
-        self._dump_runtime()
-        self._output.write('_bf_entry:\n')
-        self._output.write('\txor r12, r12\n')
+def _dump_runtime(output):
+    with open(os.path.join(os.path.dirname(__file__), 'runtime.asm')) as runtime:
+        output.write(runtime.read())
+        output.write('\n')
 
-    def add(self, value: int):
-        if value == 1:
-            self._output.write('\tinc byte [rbx + r12]\n')
-        elif value == -1:
-            self._output.write('\tdec byte [rbx + r12]\n')
-        else:
-            self._output.write('\tadd byte [rbx + r12], {}\n'.format(value))
 
-    def set(self, value: int):
-        self._output.write('\tmov byte [rbx + r12], {}\n'.format(value))
+def _x64_add(output, block: BrainfuckIRBlock, instr: BrainfuckIRInstruction):
+    output.write('\tadd byte [rbx + r12], {}\n'.format(instr.get_argument()))
 
-    def shift(self, value: int):
-        if value == 1:
-            self._output.write('\tinc r12\n')
-        elif value == -1:
-            self._output.write('\tdec r12\n')
-        else:
-            self._output.write('\tadd r12, {}\n'.format(value))
-        self._output.write('\tcall _bf_normalize_pointer\n')
 
-    def write(self):
-        self._output.write('\tcall _bf_write\n')
+def _x64_set(output, block: BrainfuckIRBlock, instr: BrainfuckIRInstruction):
+    output.write('\tmov byte [rbx + r12], {}\n'.format(instr.get_argument()))
 
-    def read(self):
-        self._output.write('\tcall _bf_read\n')
 
-    def loop(self):
-        label = '_bf_loop{}'.format(self._loopid)
-        self._loopid += 1
-        self._output.write('\tjmp {}_end\n'.format(label))
-        self._output.write('{}_start:\n'.format(label))
-        def close_loop():
-            self._output.write('{}_end:\n'.format(label))
-            self._output.write('\tcmp byte [r12 + rbx], 0\n')
-            self._output.write('\tjne {}_start\n'.format(label))
-        return close_loop
+def _x64_shift(output, block: BrainfuckIRBlock, instr: BrainfuckIRInstruction):
+    output.write('\tadd r12, {}\n'.format(instr.get_argument()))
+    output.write('\tcall _bf_normalize_pointer\n')
 
-    def finalize(self):
-        self._output.write('\tret\n')
 
-    def _dump_runtime(self):
-        with open(os.path.join(os.path.dirname(__file__), 'runtime.asm')) as runtime:
-            self._output.write(runtime.read())
-            self._output.write('\n')
+def _x64_write(output, block: BrainfuckIRBlock, instr: BrainfuckIRInstruction):
+    output.write('\tcall _bf_write\n')
+
+
+def _x64_read(output, block: BrainfuckIRBlock, instr: BrainfuckIRInstruction):
+    output.write('\tcall _bf_read\n')
+
+
+def _x64_branch(output, block: BrainfuckIRBlock, instr: BrainfuckIRInstruction):
+    output.write('\tcmp byte [rbx + r12], 0\n')
+    jmp_zero = instr.get_argument()[0]
+    jmp_not_zero = instr.get_argument()[1]
+    if block.get_id() + 1 == jmp_zero:
+        output.write('\tjne _bf_block{}\n'.format(jmp_not_zero))
+    elif block.get_id() + 1 == jmp_not_zero:
+        output.write('\tje _bf_block{}\n'.format(jmp_zero))
+    else:
+        output.write('\tjz _bf_block{}\n'.format(instr.get_argument()[0]))
+        output.write('\tjmp _bf_block{}\n'.format(instr.get_argument()[1]))
+
+
+def _x64_end(output, block: BrainfuckIRBlock, instr: BrainfuckIRInstruction):
+    output.write('\tret\n')
+
+
+def _x64_compile_block(output, block: BrainfuckIRBlock):
+    opcodes = {
+        BrainfuckIROpcode.Add: _x64_add,
+        BrainfuckIROpcode.Ldc: _x64_set,
+        BrainfuckIROpcode.Shift: _x64_shift,
+        BrainfuckIROpcode.Write: _x64_write,
+        BrainfuckIROpcode.Read: _x64_read,
+        BrainfuckIROpcode.Branch: _x64_branch,
+        BrainfuckIROpcode.End: _x64_end
+    }
+    output.write('_bf_block{}:\n'.format(block.get_id()))
+    for instr in block.instructions():
+        if instr.get_opcode() in opcodes:
+            opcodes[instr.get_opcode()](output, block, instr)
+
+
+def brainfuck_compile_x64(output, ir: BrainfuckIRModule):
+    _dump_runtime(output)
+    for block in ir.blocks():
+        if ir.is_entry(block.get_id()):
+            output.write('_bf_entry:\n')
+            output.write('\txor r12, r12\n')
+        _x64_compile_block(output, block)
+
