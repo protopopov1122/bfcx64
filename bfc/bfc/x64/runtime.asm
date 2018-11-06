@@ -1,3 +1,9 @@
+SECTION .data
+
+BUF_SIZE:   Equ 24
+WRITE_BUF:  times BUF_SIZE db 0
+WRITE_POINTER: dq 0
+
 SECTION .text
 
 MEMORY_SIZE:	Equ	30000
@@ -8,17 +14,29 @@ _bf_terminate:
 	mov rax, 60
 	syscall
 
+_bf_flush:
+    mov rax, 1
+    mov rdi, 0
+    lea rsi, [WRITE_BUF]
+    mov rdx, [WRITE_POINTER]
+    syscall
+    mov qword [WRITE_POINTER], 0
+    ret
+
 _bf_write:
-	mov rax, 1
-	push qword [rbx+r12]
-	mov rdi, 0
-	lea rsi, [rsp]
-	mov rdx, 1
-	syscall
-	pop rax
+    cmp qword [WRITE_POINTER], BUF_SIZE
+    jl _bf_write_to_buf
+    call _bf_flush
+_bf_write_to_buf:
+    lea rdi, [WRITE_BUF]
+    add rdi, [WRITE_POINTER]
+    mov rax, [rbx + r12]
+    mov [rdi], al
+    inc qword [WRITE_POINTER]
 	ret
 
 _bf_read:
+	call _bf_flush
 	mov rax, 0
 	mov rdi, 1
 	push rdi
@@ -63,5 +81,6 @@ _bf_alloc_loop:
 _start:
 	call _bf_alloc
 	call _bf_entry
+	call _bf_flush
 	jmp _bf_terminate
 
