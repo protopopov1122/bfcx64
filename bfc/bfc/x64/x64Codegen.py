@@ -30,16 +30,21 @@ def _x64_read(output, block: BrainfuckIRBlock, instr: BrainfuckIRInstruction):
 
 
 def _x64_branch(output, block: BrainfuckIRBlock, instr: BrainfuckIRInstruction):
-    output.write('\tcmp byte [rbx + r12], 0\n')
-    jmp_zero = instr.get_argument()[0]
-    jmp_not_zero = instr.get_argument()[1]
-    if block.get_id() + 1 == jmp_zero:
-        output.write('\tjne _bf_block{}\n'.format(jmp_not_zero))
-    elif block.get_id() + 1 == jmp_not_zero:
-        output.write('\tje _bf_block{}\n'.format(jmp_zero))
+    destination = instr.get_argument()
+    if isinstance(destination, int):
+        if block.get_id() + 1 != destination:
+            output.write('\tjmp _bf_block{}\n'.format(destination))
     else:
-        output.write('\tjz _bf_block{}\n'.format(instr.get_argument()[0]))
-        output.write('\tjmp _bf_block{}\n'.format(instr.get_argument()[1]))
+        output.write('\tcmp byte [rbx + r12], 0\n')
+        jmp_zero = instr.get_argument()[0]
+        jmp_not_zero = instr.get_argument()[1]
+        if block.get_id() + 1 == jmp_zero:
+            output.write('\tjne _bf_block{}\n'.format(jmp_not_zero))
+        elif block.get_id() + 1 == jmp_not_zero:
+            output.write('\tje _bf_block{}\n'.format(jmp_zero))
+        else:
+            output.write('\tjz _bf_block{}\n'.format(instr.get_argument()[0]))
+            output.write('\tjmp _bf_block{}\n'.format(instr.get_argument()[1]))
 
 
 def _x64_end(output, block: BrainfuckIRBlock, instr: BrainfuckIRInstruction):
