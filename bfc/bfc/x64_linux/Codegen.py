@@ -67,7 +67,7 @@ def _x64_compile_block(output, block: BrainfuckIRBlock):
             opcodes[instr.get_opcode()](output, block, instr)
 
 
-def brainfuck_compile_x64(output, ir: BrainfuckIRModule):
+def brainfuck_compile_x64_linux(output, ir: BrainfuckIRModule, module_name: str):
     _dump_runtime(output)
     for block in ir.blocks():
         if ir.is_entry(block.get_id()):
