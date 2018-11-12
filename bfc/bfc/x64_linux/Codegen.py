@@ -2,8 +2,8 @@ import os
 from bfc.IR import *
 
 
-def _dump_runtime(output):
-    with open(os.path.join(os.path.dirname(__file__), 'runtime.asm')) as runtime:
+def _dump_runtime(output, runtime: str):
+    with open(os.path.join(os.path.dirname(__file__), runtime)) as runtime:
         output.write(runtime.read())
         output.write('\n')
 
@@ -68,7 +68,17 @@ def _x64_compile_block(output, block: BrainfuckIRBlock):
 
 
 def brainfuck_compile_x64_linux(output, ir: BrainfuckIRModule, module_name: str):
-    _dump_runtime(output)
+    _dump_runtime(output, 'runtime.asm')
+    for block in ir.blocks():
+        if ir.is_entry(block.get_id()):
+            output.write('_bf_entry:\n')
+            output.write('\txor r12, r12\n')
+        _x64_compile_block(output, block)
+
+
+def brainfuck_compile_x64_linux_lib(output, ir: BrainfuckIRModule, module_name: str):
+    output.write('%define MODULE_ENTRY _bf_{}\n'.format(module_name))
+    _dump_runtime(output, 'runtime_lib.asm')
     for block in ir.blocks():
         if ir.is_entry(block.get_id()):
             output.write('_bf_entry:\n')

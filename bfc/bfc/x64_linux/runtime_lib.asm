@@ -1,5 +1,3 @@
-DEFAULT REL
-
 SECTION .data
 
 BUF_SIZE:   Equ 24
@@ -14,22 +12,22 @@ global MODULE_ENTRY
 _bf_flush:
     mov rax, 1
     mov rdi, 0
-    lea rsi, [WRITE_BUF]
-    mov rdx, [WRITE_POINTER]
+    lea rsi, [rel WRITE_BUF]
+    mov rdx, [rel WRITE_POINTER]
     syscall
-    mov qword [WRITE_POINTER], 0
+    mov qword [rel WRITE_POINTER], 0
     ret
 
 _bf_write:
-    cmp qword [WRITE_POINTER], BUF_SIZE
+    cmp qword [rel WRITE_POINTER], BUF_SIZE
     jl _bf_write_to_buf
     call _bf_flush
 _bf_write_to_buf:
-    mov rax, rdi
-    lea rdi, [WRITE_BUF]
-    add rdi, [WRITE_POINTER]
+    lea rdi, [rel WRITE_BUF]
+    add rdi, [rel WRITE_POINTER]
+    mov rax, [rbx + r12]
     mov [rdi], al
-    inc qword [WRITE_POINTER]
+    inc qword [rel WRITE_POINTER]
 	ret
 
 _bf_read:
@@ -41,17 +39,17 @@ _bf_read:
 	mov rdx, 1
 	syscall
 	pop rax
+	mov [rbx+r12], al
 	ret
 
 _bf_normalize_pointer:
-    mov rax, rdi
-	cmp rax, 0
+	cmp r12, 0
 	jge _bf_normalize_pointer_not_negative
-	add rax, [MEMORY_SIZE]
+	add r12, [rel MEMORY_SIZE]
 _bf_normalize_pointer_not_negative:
-	cmp rax, [MEMORY_SIZE]
+	cmp r12, [rel MEMORY_SIZE]
 	jl _bf_normalize_pointer_normal
-	sub rax, [MEMORY_SIZE]
+	sub r12, [rel MEMORY_SIZE]
 _bf_normalize_pointer_normal:
 	ret
 
@@ -66,7 +64,7 @@ _bf_clear_memory_loop:
 
 MODULE_ENTRY:
     call _bf_clear_memory
-    mov [MEMORY_SIZE], rdi
+    mov [rel MEMORY_SIZE], rdi
     push rbx
     push r12
     mov rbx, rsi
