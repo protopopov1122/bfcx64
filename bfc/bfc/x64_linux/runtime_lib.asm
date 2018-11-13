@@ -43,22 +43,26 @@ _bf_read:
 	ret
 
 _bf_normalize_pointer:
+    mov rax, [rel MEMORY_SIZE]
+    imul rax, BF_CELL_SIZE
 	cmp r12, 0
 	jge _bf_normalize_pointer_not_negative
-	add r12, [rel MEMORY_SIZE]
+	add r12, rax
 _bf_normalize_pointer_not_negative:
-	cmp r12, [rel MEMORY_SIZE]
+	cmp r12, rax
 	jl _bf_normalize_pointer_normal
-	sub r12, [rel MEMORY_SIZE]
+	sub r12, rax
 _bf_normalize_pointer_normal:
 	ret
 
 _bf_clear_memory:
-    mov rax, 0
+    mov rcx, 0
+    mov rax, rdi
+    imul rax, BF_CELL_SIZE
 _bf_clear_memory_loop:
-    mov byte [rsi + rax], 0
-    inc rax
-    cmp rax, rdi
+    mov byte [rsi + rcx], 0
+    inc rcx
+    cmp rcx, rax
     jne _bf_clear_memory_loop
 	ret
 

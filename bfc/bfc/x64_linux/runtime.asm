@@ -6,7 +6,7 @@ WRITE_POINTER: dq 0
 
 SECTION .text
 
-MEMORY_SIZE:	Equ	30000
+MEMORY_SIZE:	Equ	30000 * BF_CELL_SIZE
 
 global _start
 

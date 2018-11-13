@@ -1,10 +1,9 @@
 from bfc.Token import brainfuck_tokenize
 from bfc.Parser import brainfuck_parse
-from bfc.Optimize import brainfuck_optimize_ast
-from bfc.IRCompiler import brainfuck_compile_ir
 from bfc.IROptimizer import brainfuck_ir_optimize
 from bfc.Codegen import Codegen
 from bfc.Error import BrainfuckError
+from bfc.Options import *
 import io
 import sys
 import os
@@ -22,11 +21,12 @@ def main(args):
             raise BrainfuckError('Code generator {} not found'.format(args[2]))
         with open(args[1]) as code:
             module_name = os.path.basename(code.name).split('.')[0]
+            options = BrainfuckOptions(module_name, memory_overflow=MemoryOverflow.Wrap, cell_size=MemoryCellSize.Byte)
             asm = io.StringIO()
-            ast = brainfuck_parse(brainfuck_tokenize(code))
-            ir = brainfuck_compile_ir(brainfuck_optimize_ast(ast))
-            brainfuck_ir_optimize(ir)
-            codegen(asm, ir, module_name)
+            ir = brainfuck_parse(brainfuck_tokenize(code))
+            ir = brainfuck_ir_optimize(ir)
+            codegen(asm, ir, options)
+            # print('\n'.join([str(instr) for instr in ir.get_body()]))
             print(asm.getvalue())
 
 
