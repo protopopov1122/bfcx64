@@ -64,12 +64,13 @@ class BrainfuckLinuxX64:
     def _shift_pointer(self, output, offset: int):
         if offset != 0:
             cell_byte_size = self._options.get_cell_size().get_size()
-            byte_offset = offset * cell_byte_size
+            command = 'add' if offset > 0 else 'sub'
+            byte_offset = abs(offset * cell_byte_size)
             if self._options.get_memory_overflow() != MemoryOverflow.Undefined:
-                output.write('\tadd r12, {}\n'.format(byte_offset))
+                output.write(f'\t{command} r12, {byte_offset}\n')
                 self._normalize_pointer(output)
             else:
-                output.write('\tadd rbx, {}\n'.format(byte_offset))
+                output.write(f'\t{command} rbx, {byte_offset}\n')
 
     def _normalize_pointer(self, output):
         if self._options.get_memory_overflow() == MemoryOverflow.Wrap:
@@ -83,7 +84,7 @@ class BrainfuckLinuxX64:
         elif self._options.get_cell_size() == MemoryCellSize.Word:
             return f'{reg}x'
         elif self._options.get_cell_size() == MemoryCellSize.DWord:
-            return f'r{reg}x'
+            return f'e{reg}x'
 
     def _opcode_add(self, output, instr: IRInstruction):
         value = instr.get_arguments()[0]
@@ -131,7 +132,7 @@ class BrainfuckLinuxX64:
             else:
                 self._shift_pointer(output, offset - pointer)
                 pointer = offset
-                output.write(f'\tadd {self._cell()}, {reg}\n')   
+                output.write(f'\tadd {self._cell()}, {reg}\n')
         if pointer != 0:
             self._shift_pointer(output, -pointer)
         output.write(f'{end_label}:\n')

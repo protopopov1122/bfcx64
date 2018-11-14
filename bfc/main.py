@@ -59,7 +59,7 @@ def main(args):
             asm = io.StringIO()
             ir = brainfuck_parse(brainfuck_tokenize(code))
             ir = brainfuck_ir_optimize(ir)
-            ir = brainfuck_ir_analyze_flow(ir)
+            ir = brainfuck_ir_analyze_flow(ir, options)
             codegen(asm, ir, options)
             # print('\n'.join([str(instr) for instr in ir.get_body()]))
             print(asm.getvalue())

@@ -11,6 +11,9 @@ class IROpcode(enum.Enum):
     Nop = 'Nop'
     Copy = 'Copy'
 
+    def requires_explicit_shift(self)->bool:
+        return self in [IROpcode.Loop, IROpcode.Copy, IROpcode.Read, IROpcode.Write, IROpcode.Nop]
+
 
 
 class IRInstruction:
