@@ -123,10 +123,17 @@ class BrainfuckLinuxX64:
         output.write(f'\tcmp {reg}, 0\n')
         output.write(f'\tje {end_label}\n')
         output.write(f'\tmov {self._cell()}, 0\n')
+        pointer = 0
+        direct_pointing = self._options.get_memory_overflow() == MemoryOverflow.Undefined
         for offset in offsets:
-            self._shift_pointer(output, offset)
-            output.write(f'\tadd {self._cell()}, {reg}\n')
-            self._shift_pointer(output, -offset)
+            if direct_pointing:
+                output.write(f'\tadd {self._cell(offset)}, {reg}\n')
+            else:
+                self._shift_pointer(output, offset - pointer)
+                pointer = offset
+                output.write(f'\tadd {self._cell()}, {reg}\n')   
+        if pointer != 0:
+            self._shift_pointer(output, -pointer)
         output.write(f'{end_label}:\n')
 
     def _opcode_loop(self, output, ir: IRInstruction):
