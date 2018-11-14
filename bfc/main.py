@@ -1,6 +1,7 @@
 from bfc.Token import brainfuck_tokenize
 from bfc.Parser import brainfuck_parse
 from bfc.IROptimizer import brainfuck_ir_optimize
+from bfc.FlowAnalysis import brainfuck_ir_analyze_flow
 from bfc.Codegen import Codegen
 from bfc.Error import BrainfuckError
 from bfc.Options import *
@@ -25,6 +26,7 @@ def main(args):
             asm = io.StringIO()
             ir = brainfuck_parse(brainfuck_tokenize(code))
             ir = brainfuck_ir_optimize(ir)
+            ir = brainfuck_ir_analyze_flow(ir)
             codegen(asm, ir, options)
             # print('\n'.join([str(instr) for instr in ir.get_body()]))
             print(asm.getvalue())

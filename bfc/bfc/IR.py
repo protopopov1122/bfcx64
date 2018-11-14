@@ -8,12 +8,16 @@ class IROpcode(enum.Enum):
     Read = 'Read'
     Loop = 'Loop'
     Set = 'Set'
+    Nop = 'Nop'
+
 
 
 class IRInstruction:
     def __init__(self, opcode: IROpcode, *args):
         self._opcode = opcode
         self._args = args
+        self._pointer = 0
+        self._dependencies = list()
 
     def get_opcode(self)->IROpcode:
         return self._opcode
@@ -21,11 +25,23 @@ class IRInstruction:
     def get_arguments(self):
         return self._args
 
+    def get_pointer(self)->int:
+        return self._pointer
+
+    def set_pointer(self, pointer: int):
+        self._pointer = pointer
+
+    def get_dependencies(self)->list:
+        return self._dependencies
+
+    def add_dependency(self, instr):
+        self._dependencies.append(instr)
+
     def __str__(self):
         if self._opcode != IROpcode.Loop:
-            return '{} {}'.format(self._opcode, self._args)
+            return '{} {} {}'.format(self._opcode, self._args, self._pointer)
         else:
-            return 'loop [{}]'.format('; '.join([str(instr) for instr in self._args[0].get_body()]))
+            return 'loop [{}] {}'.format('; '.join([str(instr) for instr in self._args[0].get_body()]), self._pointer)
 
 
 class IRInstructionBlock:
@@ -62,25 +78,29 @@ class IRInstructionBlock:
 
 class IRInstructionBuilder:
     @staticmethod
-    def add(value: int, offset: int = 0):
-        return IRInstruction(IROpcode.Add, value, offset)
+    def add(value: int):
+        return IRInstruction(IROpcode.Add, value)
 
     @staticmethod
-    def set(value: int, offset: int = 0):
-        return IRInstruction(IROpcode.Set, value, offset)
+    def set(value: int):
+        return IRInstruction(IROpcode.Set, value)
 
     @staticmethod
     def shift(value: int):
         return IRInstruction(IROpcode.Shift, value)
 
     @staticmethod
-    def write(offset: int = 0):
-        return IRInstruction(IROpcode.Write, offset)
+    def write():
+        return IRInstruction(IROpcode.Write)
 
     @staticmethod
-    def read(offset: int = 0):
-        return IRInstruction(IROpcode.Read, offset)
+    def read():
+        return IRInstruction(IROpcode.Read)
 
     @staticmethod
     def loop(block: IRInstructionBlock):
         return IRInstruction(IROpcode.Loop, block)
+
+    @staticmethod
+    def nop():
+        return IRInstruction(IROpcode.Nop)

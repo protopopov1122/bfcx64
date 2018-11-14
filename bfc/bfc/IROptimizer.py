@@ -79,11 +79,10 @@ def match_loop(matcher = None, is_determined: bool = False):
 def optimize_merge_add(block: [IRInstruction], match):
     instr1 = block[-2]
     instr2 = block[-1]
-    if instr1.get_arguments()[1] == instr2.get_arguments()[1]:
-        add_instr = IRInstructionBuilder.add(instr1.get_arguments()[0] + instr2.get_arguments()[0], instr1.get_arguments()[1])
-        del block[-1]
-        del block[-1]
-        block.append(add_instr)
+    add_instr = IRInstructionBuilder.add(instr1.get_arguments()[0] + instr2.get_arguments()[0])
+    del block[-1]
+    del block[-1]
+    block.append(add_instr)
 
 
 def optimize_merge_shift(block: [IRInstruction], match):
@@ -98,18 +97,14 @@ def optimize_merge_shift(block: [IRInstruction], match):
 def optimize_merge_add_set(block: [IRInstruction], match):
     instr1 = block[-2]
     instr2 = block[-1]
-    if instr1.get_arguments()[1] == instr2.get_arguments()[1]:
-        set_instr = IRInstructionBuilder.set(instr1.get_arguments()[0] + instr2.get_arguments()[0], instr1.get_arguments()[1])
-        del block[-1]
-        del block[-1]
-        block.append(set_instr)
+    set_instr = IRInstructionBuilder.set(instr1.get_arguments()[0] + instr2.get_arguments()[0])
+    del block[-1]
+    del block[-1]
+    block.append(set_instr)
 
 
 def optimize_merge_set(block: [IRInstruction], match):
-    instr1 = block[-2]
-    instr2 = block[-1]
-    if instr1.get_arguments()[1] == instr2.get_arguments()[1]:
-        del block[-2]
+    del block[-2]
 
 
 def optimize_zero_set(block: [IRInstruction], match):
@@ -124,20 +119,20 @@ def optimize_loop(block: [IRInstruction], match):
     block.append(loop)
 
 
-def optimize_copy(block: [IRInstruction], match):
-    # print(match[0])
-    copies = list()
-    offset = 0
-    slice = block[-1].get_arguments()[0].get_body()[1:]
-    while len(slice) > 2 and slice[0].get_opcode() == IROpcode.Shift:
-        offset += slice[0].get_arguments()[0]
-        copies.append(offset)
-        slice = slice[2:]
-    del block[-1]
-    for offset in copies:
-        # print(offset)
-        block.append(IRInstructionBuilder.copy(offset))
-    block.append(IRInstructionBuilder.set(0))
+# def optimize_copy(block: [IRInstruction], match):
+#     # print(match[0])
+#     copies = list()
+#     offset = 0
+#     slice = block[-1].get_arguments()[0].get_body()[1:]
+#     while len(slice) > 2 and slice[0].get_opcode() == IROpcode.Shift:
+#         offset += slice[0].get_arguments()[0]
+#         copies.append(offset)
+#         slice = slice[2:]
+#     del block[-1]
+#     for offset in copies:
+#         # print(offset)
+#         block.append(IRInstructionBuilder.copy(offset))
+#     block.append(IRInstructionBuilder.set(0))
 
 
 def brainfuck_optimize_block(block: [IRInstruction]):

@@ -7,9 +7,12 @@ class MemoryOverflow(enum.Enum):
 
 
 class MemoryCellSize(enum.Enum):
-    Byte = 8
-    Word = 16
-    DWord = 32
+    Byte = 1
+    Word = 2
+    DWord = 4
+
+    def get_size(self)->int:
+        return self.value
 
 
 class BrainfuckOptions:
