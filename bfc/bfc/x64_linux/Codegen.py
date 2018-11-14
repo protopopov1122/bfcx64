@@ -21,6 +21,7 @@ class BrainfuckLinuxX64:
             IROpcode.Write: self._opcode_write,
             IROpcode.Read: self._opcode_read,
             IROpcode.Loop: self._opcode_loop,
+            IROpcode.Copy: self._opcode_copy
         }
 
     def compile(self, output, module: IRInstructionBlock):
@@ -76,6 +77,14 @@ class BrainfuckLinuxX64:
         elif self._options.get_memory_overflow() == MemoryOverflow.Abort:
             output.write('\tcall _bf_check_pointer\n')
 
+    def _register(self, reg: str = 'a'):
+        if self._options.get_cell_size() == MemoryCellSize.Byte:
+            return f'{reg}l'
+        elif self._options.get_cell_size() == MemoryCellSize.Word:
+            return f'{reg}x'
+        elif self._options.get_cell_size() == MemoryCellSize.DWord:
+            return f'r{reg}x'
+
     def _opcode_add(self, output, instr: IRInstruction):
         value = instr.get_arguments()[0]
         offset = instr.get_pointer()
@@ -103,6 +112,22 @@ class BrainfuckLinuxX64:
         self._shift_pointer(output, offset)
         output.write('\tcall _bf_read\n')
         self._shift_pointer(output, -offset)
+
+    def _opcode_copy(self, output, instr: IRInstruction):
+        offsets = instr.get_arguments()
+        loop_id = self._next_loop_id
+        self._next_loop_id += 1
+        end_label = f'_bf_copy{loop_id}_end'
+        reg = self._register('a')
+        output.write(f'\tmov {reg}, {self._cell()}\n')
+        output.write(f'\tcmp {reg}, 0\n')
+        output.write(f'\tje {end_label}\n')
+        output.write(f'\tmov {self._cell()}, 0\n')
+        for offset in offsets:
+            self._shift_pointer(output, offset)
+            output.write(f'\tadd {self._cell()}, {reg}\n')
+            self._shift_pointer(output, -offset)
+        output.write(f'{end_label}:\n')
 
     def _opcode_loop(self, output, ir: IRInstruction):
         loop_id = self._next_loop_id

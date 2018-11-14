@@ -9,6 +9,7 @@ class IROpcode(enum.Enum):
     Loop = 'Loop'
     Set = 'Set'
     Nop = 'Nop'
+    Copy = 'Copy'
 
 
 
@@ -104,3 +105,7 @@ class IRInstructionBuilder:
     @staticmethod
     def nop():
         return IRInstruction(IROpcode.Nop)
+
+    @staticmethod
+    def copy(offsets: [int]):
+        return IRInstruction(IROpcode.Copy, *offsets)

@@ -18,6 +18,14 @@ def brainfuck_ir_fold_block(block: [IRInstruction]):
             set_instr = IRInstructionBuilder.set(instr.get_arguments()[0])
             set_instr.set_pointer(pointer)
             flow[pointer] = set_instr
+        elif instr.get_opcode() == IROpcode.Copy:
+            copy = IRInstructionBuilder.copy(instr.get_arguments())
+            copy.set_pointer(pointer)
+            pointer = 0
+            for instr_pointer in flow.keys():
+                copy.add_dependency(flow[instr_pointer])
+            flow = dict()
+            new_block.append(copy)
         elif instr.get_opcode() == IROpcode.Write:
             write_instr = IRInstructionBuilder.write()
             write_instr.set_pointer(pointer)
@@ -60,6 +68,9 @@ def brainfuck_ir_unfold_block(block: [IRInstruction]):
             pointer = instr.get_pointer()
         if instr.get_opcode() == IROpcode.Loop:
             new_instr = IRInstructionBuilder.loop(IRInstructionBlock(brainfuck_ir_unfold_block(instr.get_arguments()[0].get_body())))
+            pointer = 0
+        elif instr.get_opcode() == IROpcode.Copy:
+            new_instr = IRInstruction(instr.get_opcode(), *instr.get_arguments())
             pointer = 0
         elif instr.get_opcode() != IROpcode.Nop:
             new_instr = IRInstruction(instr.get_opcode(), *instr.get_arguments())

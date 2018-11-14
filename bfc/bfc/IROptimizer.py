@@ -119,20 +119,16 @@ def optimize_loop(block: [IRInstruction], match):
     block.append(loop)
 
 
-# def optimize_copy(block: [IRInstruction], match):
-#     # print(match[0])
-#     copies = list()
-#     offset = 0
-#     slice = block[-1].get_arguments()[0].get_body()[1:]
-#     while len(slice) > 2 and slice[0].get_opcode() == IROpcode.Shift:
-#         offset += slice[0].get_arguments()[0]
-#         copies.append(offset)
-#         slice = slice[2:]
-#     del block[-1]
-#     for offset in copies:
-#         # print(offset)
-#         block.append(IRInstructionBuilder.copy(offset))
-#     block.append(IRInstructionBuilder.set(0))
+def optimize_copy(block: [IRInstruction], match):
+    copies = list()
+    offset = 0
+    slice = block[-1].get_arguments()[0].get_body()[1:]
+    while len(slice) > 2 and slice[0].get_opcode() == IROpcode.Shift:
+        offset += slice[0].get_arguments()[0]
+        copies.append(offset)
+        slice = slice[2:]
+    del block[-1]
+    block.append(IRInstructionBuilder.copy(copies))
 
 
 def brainfuck_optimize_block(block: [IRInstruction]):
@@ -152,19 +148,19 @@ def brainfuck_optimize_block(block: [IRInstruction]):
             )
         ), optimize_zero_set),
         (match_loop(), optimize_loop),
-        # (
-        #     match_loop(
-        #         match_sequence(
-        #             match_instruction(IROpcode.Add, match_integer(-1)),
-        #             match_multiple(match_sequence(
-        #               match_opcode(IROpcode.Shift),
-        #               match_instruction(IROpcode.Add, match_integer(1))
-        #             )),
-        #             match_opcode(IROpcode.Shift),
-        #             whole_sequence=True
-        #         ), is_determined=True
-        #     ), optimize_copy
-        # )
+        (
+            match_loop(
+                match_sequence(
+                    match_instruction(IROpcode.Add, match_integer(-1)),
+                    match_multiple(match_sequence(
+                      match_opcode(IROpcode.Shift),
+                      match_instruction(IROpcode.Add, match_integer(1))
+                    )),
+                    match_opcode(IROpcode.Shift),
+                    whole_sequence=True
+                ), is_determined=True
+            ), optimize_copy
+        )
     ]
     new_block = list()
     for instr in block:
