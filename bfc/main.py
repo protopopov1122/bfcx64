@@ -10,19 +10,52 @@ import sys
 import os
 
 
+CELL_SIZE = {
+    'byte': MemoryCellSize.Byte,
+    'word': MemoryCellSize.Word,
+    'dword': MemoryCellSize.DWord,
+}
+
+MEMORY_MODEL = {
+    'wrap': MemoryOverflow.Wrap,
+    'abort': MemoryOverflow.Abort,
+    'undefined': MemoryOverflow.Undefined
+}
+
+
+def parse_args(args):
+    file_name = None
+    codegen = Codegen['x64-linux']
+    params = dict()
+    for arg in args[1:]:
+        if '=' in arg:
+            key = arg.split('=')[0]
+            value = arg.split('=')[1]
+            params[key] = value
+        elif file_name is None:
+            file_name = arg
+        elif arg in Codegen:
+            codegen = Codegen[arg]
+        else:
+            raise BrainfuckError(f'Code generator {arg} not found')
+
+    cell_size = MemoryCellSize.Byte
+    memory_model = MemoryOverflow.Wrap
+    if 'cell' in params and params['cell'] in CELL_SIZE:
+        cell_size = CELL_SIZE[params['cell']]
+    if 'memory' in params and params['memory'] in MEMORY_MODEL:
+        memory_model = MEMORY_MODEL[params['memory']]
+    return file_name, codegen, memory_model, cell_size
+
+
 def main(args):
     if len(args) < 2:
         print('Provide file name')
     else:
-        if len(args) == 3 and args[2] in Codegen:
-            codegen = Codegen[args[2]]
-        elif len(args) < 3:
-            codegen = Codegen['x64-linux']
-        else:
-            raise BrainfuckError('Code generator {} not found'.format(args[2]))
-        with open(args[1]) as code:
+        file_name, codegen, memory_model, cell_size = parse_args(args)
+        with open(file_name) as code:
             module_name = os.path.basename(code.name).split('.')[0]
-            options = BrainfuckOptions(module_name, memory_overflow=MemoryOverflow.Wrap, cell_size=MemoryCellSize.Byte)
+            options = BrainfuckOptions(module_name, memory_overflow=memory_model, cell_size=cell_size)
             asm = io.StringIO()
             ir = brainfuck_parse(brainfuck_tokenize(code))
             ir = brainfuck_ir_optimize(ir)
