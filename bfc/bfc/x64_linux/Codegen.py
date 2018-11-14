@@ -32,6 +32,7 @@ class BrainfuckLinuxX64:
         output.write('\txor r12, r12\n')
         for instr in module.get_body():
             self._compile_instruction(output, instr)
+        output.write('\tmov rax, 0\n')
         output.write('\tret\n')
 
     def _dump_runtime(self, output):
@@ -46,7 +47,7 @@ class BrainfuckLinuxX64:
             self.opcodes[instr.get_opcode()](output, instr)
 
     def _cell_pointer(self):
-        if self._options.get_memory_overflow() == MemoryOverflow.Wrap:
+        if self._options.get_memory_overflow() != MemoryOverflow.Undefined:
             return 'rbx + r12'
         else:
             return 'rbx'
@@ -63,7 +64,7 @@ class BrainfuckLinuxX64:
         if offset != 0:
             cell_byte_size = self._options.get_cell_size().get_size()
             byte_offset = offset * cell_byte_size
-            if self._options.get_memory_overflow() == MemoryOverflow.Wrap:
+            if self._options.get_memory_overflow() != MemoryOverflow.Undefined:
                 output.write('\tadd r12, {}\n'.format(byte_offset))
                 self._normalize_pointer(output)
             else:
@@ -72,6 +73,8 @@ class BrainfuckLinuxX64:
     def _normalize_pointer(self, output):
         if self._options.get_memory_overflow() == MemoryOverflow.Wrap:
             output.write('\tcall _bf_normalize_pointer\n')
+        elif self._options.get_memory_overflow() == MemoryOverflow.Abort:
+            output.write('\tcall _bf_check_pointer\n')
 
     def _opcode_add(self, output, instr: IRInstruction):
         value = instr.get_arguments()[0]

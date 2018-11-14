@@ -55,6 +55,18 @@ _bf_normalize_pointer_not_negative:
 _bf_normalize_pointer_normal:
 	ret
 
+_bf_abort:
+    add rsp, 8
+    mov rax, 1
+    ret
+
+_bf_check_pointer:
+    cmp r12, 0
+    jl _bf_abort
+    cmp r12, [rel MEMORY_SIZE]
+    jge _bf_abort
+    ret
+
 _bf_clear_memory:
     mov rcx, 0
     mov rax, rdi
@@ -75,6 +87,10 @@ MODULE_ENTRY:
     call _bf_entry
     pop r12
     pop rbx
+    cmp rax, 0
+    jne _bf_on_error
     call _bf_flush
+    mov rax, 0
+_bf_on_error:
     ret
 

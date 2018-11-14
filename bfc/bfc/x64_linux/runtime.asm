@@ -1,14 +1,27 @@
+%define ERROR_MESSAGE "Brainfuck error: memory overflow. Aborting"
+%strlen ERROR_MESSAGE_LEN ERROR_MESSAGE
+
 SECTION .data
 
-BUF_SIZE:   Equ 24
-WRITE_BUF:  times BUF_SIZE db 0
-WRITE_POINTER: dq 0
+BUF_SIZE:       Equ 24
+WRITE_BUF:      times BUF_SIZE db 0
+WRITE_POINTER:  dq 0
+ERROR_MESSAGE_DB:  db 10, ERROR_MESSAGE, 10, 0
 
 SECTION .text
 
 MEMORY_SIZE:	Equ	30000 * BF_CELL_SIZE
 
 global _start
+
+
+_bf_on_error:
+    mov rax, 1
+    mov rdi, 0
+    lea rsi, [ERROR_MESSAGE_DB]
+    mov rdx, ERROR_MESSAGE_LEN
+    add rdx, 2
+    syscall
 
 _bf_terminate:
 	mov rax, 60
@@ -58,6 +71,18 @@ _bf_normalize_pointer_not_negative:
 _bf_normalize_pointer_normal:
 	ret
 
+_bf_abort:
+    add rsp, 8
+    mov rax, 1
+    ret
+
+_bf_check_pointer:
+    cmp r12, 0
+    jl _bf_abort
+    cmp r12, MEMORY_SIZE
+    jge _bf_abort
+    ret
+
 _bf_alloc:
 	mov rax, 12
 	mov rdi, 0
@@ -81,6 +106,8 @@ _bf_alloc_loop:
 _start:
 	call _bf_alloc
 	call _bf_entry
+	cmp rax, 0
+	jne _bf_on_error
 	call _bf_flush
 	jmp _bf_terminate
 

@@ -4,6 +4,7 @@ import enum
 class MemoryOverflow(enum.Enum):
     Undefined = 'undefined'
     Wrap = 'Wrap'
+    Abort = 'Abort'
 
 
 class MemoryCellSize(enum.Enum):
