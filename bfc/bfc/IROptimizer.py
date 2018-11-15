@@ -125,7 +125,8 @@ def optimize_copy(block: [IRInstruction], match):
     slice = block[-1].get_arguments()[0].get_body()[1:]
     while len(slice) > 2 and slice[0].get_opcode() == IROpcode.Shift:
         offset += slice[0].get_arguments()[0]
-        copies.append(offset)
+        multiply = slice[1].get_arguments()[0]
+        copies.append((offset, multiply))
         slice = slice[2:]
     del block[-1]
     block.append(IRInstructionBuilder.copy(copies))
@@ -154,7 +155,7 @@ def brainfuck_optimize_block(block: [IRInstruction]):
                     match_instruction(IROpcode.Add, match_integer(-1)),
                     match_multiple(match_sequence(
                       match_opcode(IROpcode.Shift),
-                      match_instruction(IROpcode.Add, match_integer(1))
+                      match_opcode(IROpcode.Add)
                     )),
                     match_opcode(IROpcode.Shift),
                     whole_sequence=True

@@ -1,13 +1,14 @@
 import os
 from bfc.IR import *
 from bfc.Options import *
+from bfc.x64_linux.AsmGenerator import *
 
 
 class BrainfuckLinuxX64:
     CELL_SIZE_ALIAS = {
-        MemoryCellSize.Byte: 'byte',
-        MemoryCellSize.Word: 'word',
-        MemoryCellSize.DWord: 'dword',
+        MemoryCellSize.Byte: AsmPointerType.Byte,
+        MemoryCellSize.Word: AsmPointerType.Word,
+        MemoryCellSize.DWord: AsmPointerType.DWord
     }
 
     def __init__(self, options: BrainfuckOptions, runtime: str):
@@ -25,58 +26,60 @@ class BrainfuckLinuxX64:
         }
 
     def compile(self, output, module: IRInstructionBlock):
+        gen = AsmGenerator(output)
         self._next_loop_id = 0
         cell_byte_size = self._options.get_cell_size().get_size()
-        output.write('%define BF_CELL_SIZE {}\n'.format(cell_byte_size))
-        self._dump_runtime(output)
-        output.write('_bf_entry:\n')
-        output.write('\txor r12, r12\n')
+        gen.define('BF_CELL_SIZE', cell_byte_size)
+        gen.define('BF_ABORT_ON_OVERFLOW', 1 if self._options.get_memory_overflow() == MemoryOverflow.Abort else 0)
+        gen.define('BF_WRAP_ON_OVERFLOW', 1 if self._options.get_memory_overflow() == MemoryOverflow.Wrap else 0)
+        self._dump_runtime(gen)
+        gen.label('_bf_entry').put()
+        gen.xor(AsmRegister64.R12, AsmRegister64.R12)
         for instr in module.get_body():
-            self._compile_instruction(output, instr)
-        output.write('\tmov rax, 0\n')
-        output.write('\tret\n')
+            self._compile_instruction(gen, instr)
+        gen.mov(AsmRegister64.RAX, 0)
+        gen.ret()
 
-    def _dump_runtime(self, output):
+    def _dump_runtime(self, gen):
         with open(os.path.join(os.path.dirname(__file__), self._runtime)) as runtime:
-            output.write(runtime.read())
-            output.write('\n')
+            gen.dump(runtime)
 
-    def _compile_instruction(self, output, instr: IRInstruction):
+    def _compile_instruction(self, gen, instr: IRInstruction):
         for dep in instr.get_dependencies():
-            self._compile_instruction(output, dep)
+            self._compile_instruction(gen, dep)
         if instr.get_opcode() in self.opcodes:
-            self.opcodes[instr.get_opcode()](output, instr)
+            self.opcodes[instr.get_opcode()](gen, instr)
 
     def _cell_pointer(self):
         if self._options.get_memory_overflow() != MemoryOverflow.Undefined:
-            return 'rbx + r12'
+            return AsmRegister64.RBX + AsmRegister64.R12
         else:
-            return 'rbx'
+            return AsmRegister64.RBX
 
-    def _cell(self, offset: int = 0):
+    def _cell(self, gen: AsmGenerator, offset: int = 0):
         cell_size = BrainfuckLinuxX64.CELL_SIZE_ALIAS[self._options.get_cell_size()]
         cell_byte_size = self._options.get_cell_size().get_size()
         if offset != 0:
-            return f'{cell_size} [{self._cell_pointer()} + {offset * cell_byte_size}]'
+            return gen.pointer(cell_size, f'{self._cell_pointer()} + {offset * cell_byte_size}')
         else:
-            return f'{cell_size} [{self._cell_pointer()}]'
+            return gen.pointer(cell_size, self._cell_pointer())
 
-    def _shift_pointer(self, output, offset: int):
+    def _shift_pointer(self, gen: AsmGenerator, offset: int):
         if offset != 0:
             cell_byte_size = self._options.get_cell_size().get_size()
-            command = 'add' if offset > 0 else 'sub'
+            command = gen.add if offset > 0 else gen.sub
             byte_offset = abs(offset * cell_byte_size)
             if self._options.get_memory_overflow() != MemoryOverflow.Undefined:
-                output.write(f'\t{command} r12, {byte_offset}\n')
-                self._normalize_pointer(output)
+                command(AsmRegister64.R12, byte_offset)
+                self._normalize_pointer(gen)
             else:
-                output.write(f'\t{command} rbx, {byte_offset}\n')
+                command(AsmRegister64.RBX, byte_offset)
 
-    def _normalize_pointer(self, output):
+    def _normalize_pointer(self, gen):
         if self._options.get_memory_overflow() == MemoryOverflow.Wrap:
-            output.write('\tcall _bf_normalize_pointer\n')
+            gen.call('_bf_normalize_pointer')
         elif self._options.get_memory_overflow() == MemoryOverflow.Abort:
-            output.write('\tcall _bf_check_pointer\n')
+            gen.call('_bf_check_pointer')
 
     def _register(self, reg: str = 'a'):
         if self._options.get_cell_size() == MemoryCellSize.Byte:
@@ -86,70 +89,80 @@ class BrainfuckLinuxX64:
         elif self._options.get_cell_size() == MemoryCellSize.DWord:
             return f'e{reg}x'
 
-    def _opcode_add(self, output, instr: IRInstruction):
+    def _opcode_add(self, gen, instr: IRInstruction):
         value = instr.get_arguments()[0]
         offset = instr.get_pointer()
-        command = 'add' if value > 0 else 'sub'
+        command = gen.add if value > 0 else gen.sub
         absolute_value = abs(value)
-        output.write(f'\t{command} {self._cell(offset)}, {absolute_value}\n')
+        command(self._cell(gen, offset), absolute_value)
 
-    def _opcode_set(self, output, instr: IRInstruction):
+    def _opcode_set(self, gen, instr: IRInstruction):
         value = instr.get_arguments()[0]
         offset = instr.get_pointer()
-        output.write(f'\tmov {self._cell(offset)}, {value}\n')
+        gen.mov(self._cell(gen, offset), value)
 
-    def _opcode_shift(self, output, instr: IRInstruction):
+    def _opcode_shift(self, gen, instr: IRInstruction):
         offset = instr.get_arguments()[0]
-        self._shift_pointer(output, offset)
+        self._shift_pointer(gen, offset)
 
-    def _opcode_write(self, output, instr: IRInstruction):
+    def _opcode_write(self, gen, instr: IRInstruction):
         offset = instr.get_pointer()
-        self._shift_pointer(output, offset)
-        output.write('\tcall _bf_write\n')
-        self._shift_pointer(output, -offset)
+        self._shift_pointer(gen, offset)
+        gen.call('_bf_write')
+        self._shift_pointer(gen, -offset)
 
-    def _opcode_read(self, output, instr: IRInstruction):
+    def _opcode_read(self, gen, instr: IRInstruction):
         offset = instr.get_pointer()
-        self._shift_pointer(output, offset)
-        output.write('\tcall _bf_read\n')
-        self._shift_pointer(output, -offset)
+        self._shift_pointer(gen, offset)
+        gen.call('_bf_read')
+        self._shift_pointer(gen, -offset)
 
-    def _opcode_copy(self, output, instr: IRInstruction):
+    def _opcode_copy(self, gen: AsmGenerator, instr: IRInstruction):
+        cell_size = BrainfuckLinuxX64.CELL_SIZE_ALIAS[self._options.get_cell_size()]
         offsets = instr.get_arguments()
         loop_id = self._next_loop_id
         self._next_loop_id += 1
-        end_label = f'_bf_copy{loop_id}_end'
-        reg = self._register('a')
-        output.write(f'\tmov {reg}, {self._cell()}\n')
-        output.write(f'\tcmp {reg}, 0\n')
-        output.write(f'\tje {end_label}\n')
-        output.write(f'\tmov {self._cell()}, 0\n')
+        end_label = gen.label(f'_bf_copy{loop_id}_end')
+        reg = AsmAbstractRegister.RegC.get_reg(cell_size)
+        mulreg = AsmAbstractRegister.RegA.get_reg(cell_size)
+        gen.mov(reg, self._cell(gen))
+        gen.cmp(reg, 0)
+        end_label.jump_if(AsmJumpIf.Equals)
+        gen.mov(self._cell(gen), 0)
         pointer = 0
         direct_pointing = self._options.get_memory_overflow() == MemoryOverflow.Undefined
-        for offset in offsets:
-            if direct_pointing:
-                output.write(f'\tadd {self._cell(offset)}, {reg}\n')
+        for offset, multiply in offsets:
+            if multiply == 1:
+                srcreg = reg
             else:
-                self._shift_pointer(output, offset - pointer)
+                gen.push(multiply)
+                gen.mov(mulreg, reg)
+                gen.imul(gen.pointer(cell_size, AsmRegister64.RSP))
+                gen.pop(AsmRegister64.RDI)
+                srcreg = mulreg
+            if direct_pointing:
+                gen.add(self._cell(gen, offset), srcreg)
+            else:
+                self._shift_pointer(gen, offset - pointer)
                 pointer = offset
-                output.write(f'\tadd {self._cell()}, {reg}\n')
+                gen.add(self._cell(gen), srcreg)
         if pointer != 0:
-            self._shift_pointer(output, -pointer)
-        output.write(f'{end_label}:\n')
+            self._shift_pointer(gen, -pointer)
+        end_label.put()
 
-    def _opcode_loop(self, output, ir: IRInstruction):
+    def _opcode_loop(self, gen: AsmGenerator, ir: IRInstruction):
         loop_id = self._next_loop_id
         self._next_loop_id += 1
-        start_label = f'_bf_loop{loop_id}_start'
-        end_label = f'_bf_loop{loop_id}_end'
-        output.write('\tcmp {}, 0\n'.format(self._cell()))
-        output.write('\tje {}\n'.format(end_label))
-        output.write('{}:\n'.format(start_label))
+        start_label = gen.label(f'_bf_loop{loop_id}_start')
+        end_label = gen.label(f'_bf_loop{loop_id}_end')
+        gen.cmp(self._cell(gen), 0)
+        end_label.jump_if(AsmJumpIf.Equals)
+        start_label.put()
         for instr in ir.get_arguments()[0].get_body():
-            self._compile_instruction(output, instr)
-        output.write('\tcmp {}, 0\n'.format(self._cell()))
-        output.write('\tjne {}\n'.format(start_label))
-        output.write('{}:\n'.format(end_label))
+            self._compile_instruction(gen, instr)
+        gen.cmp(self._cell(gen), 0)
+        start_label.jump_if(AsmJumpIf.NotEquals)
+        end_label.put()
 
 
 def brainfuck_compile_x64_linux(output, module: IRInstructionBlock, options: BrainfuckOptions):

@@ -60,6 +60,7 @@ _bf_read:
 	mov [rbx+r12], al
 	ret
 
+%if BF_WRAP_ON_OVERFLOW=1
 _bf_normalize_pointer:
 	cmp r12, 0
 	jge _bf_normalize_pointer_not_negative
@@ -70,7 +71,10 @@ _bf_normalize_pointer_not_negative:
 	sub r12, MEMORY_SIZE
 _bf_normalize_pointer_normal:
 	ret
+%endif
 
+
+%if BF_ABORT_ON_OVERFLOW=1
 _bf_abort:
     add rsp, 8
     mov rax, 1
@@ -82,6 +86,7 @@ _bf_check_pointer:
     cmp r12, MEMORY_SIZE
     jge _bf_abort
     ret
+%endif
 
 _bf_alloc:
 	mov rax, 12

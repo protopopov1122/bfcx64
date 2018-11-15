@@ -2,7 +2,7 @@ import enum
 
 
 class MemoryOverflow(enum.Enum):
-    Undefined = 'undefined'
+    Undefined = 'Undefined'
     Wrap = 'Wrap'
     Abort = 'Abort'
 
